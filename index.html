@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASCII Art Site</title>
+  <style>
+    
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: monospace;
+      background-color: #000;
+      color: #fff;
+    }
+
+    
+    #welcomeScreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-image: url('daemoon.png'); 
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: white;
+      text-align: center;
+    }
+
+    #welcomeScreen button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
+      color: #fff;
+      background-color: #333;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    #welcomeScreen button:hover {
+      background-color: #555;
+    }
+
+    
+    #mainContent {
+      display: none; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #asciiArt {
+      white-space: pre;
+      line-height: 1em;
+      font-size: 20px;
+      user-select: none;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    #controls {
+      margin-top: 10px;
+    }
+
+    canvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  
+  <div id="welcomeScreen">
+    <h1>Welcome to ASCII Art Site</h1>
+    <button onclick="enterSite()">Enter Site</button>
+  </div>
+
+  
+  <main id="mainContent">
+    <div id="asciiArt"></div>
+    <canvas id="videoCanvas"></canvas>
+    <div id="controls">
+      <label for="densityRange">Pixel Density:</label>
+      <input type="range" id="densityRange" min="1" max="100" value="10">
+      <br>
+      <label for="fpsRange">Frame Rate:</label>
+      <input type="range" id="fpsRange" min="1" max="60" value="15">
+      <br>
+      <label for="colorPicker">Canvas Color:</label>
+      <input type="color" id="colorPicker" value="#000000">
+      <br>
+      <label for="fontSizeRange">ASCII Font Size:</label>
+      <input type="range" id="fontSizeRange" min="5" max="50" value="20">
+      <br>
+      <button id="binaryFilter">Binary Filter</button>
+      <button id="blockFilter">Block Filter</button>
+      <button id="saveAsciiArt">Save ASCII Art</button>
+      <br>
+      <input type="file" id="videoInput" accept="video/*" style="display: block; margin-top: 10px;">
+    </div>
+  </main>
+
+  <script>
+    
+    function enterSite() {
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'flex';
+    }
+
+    
+    const videoCanvas = document.getElementById('videoCanvas');
+    const ctx = videoCanvas.getContext('2d');
+    const asciiArtDiv = document.getElementById('asciiArt');
+    const videoInput = document.getElementById('videoInput');
+    const densityRange = document.getElementById('densityRange');
+    const fpsRange = document.getElementById('fpsRange');
+    const colorPicker = document.getElementById('colorPicker');
+    const fontSizeRange = document.getElementById('fontSizeRange');
+    const binaryFilterButton = document.getElementById('binaryFilter');
+    const blockFilterButton = document.getElementById('blockFilter');
+    const saveAsciiArtButton = document.getElementById('saveAsciiArt');
+
+    let pixelDensity = parseInt(densityRange.value, 10);
+    let fps = parseInt(fpsRange.value, 10);
+    let fontSize = parseInt(fontSizeRange.value, 10);
+    let asciiChars = "@#S%?*+;:,. ";
+    let binaryFilterOn = false;
+    let blockFilterOn = false;
+
+    colorPicker.addEventListener('input', function(event) {
+      asciiArtDiv.style.backgroundColor = event.target.value;
+    });
+
+    densityRange.addEventListener('input', function(event) {
+      pixelDensity = parseInt(event.target.value, 10);  
+    });
+
+    fpsRange.addEventListener('input', function(event) {
+      fps = parseInt(event.target.value, 10);
+    });
+
+    fontSizeRange.addEventListener('input', function(event) {
+      fontSize = parseInt(event.target.value, 10);
+      asciiArtDiv.style.fontSize = fontSize + 'px'; 
+    });
+
+    binaryFilterButton.addEventListener('click', function() {
+      binaryFilterOn = !binaryFilterOn;
+      blockFilterOn = false;
+      asciiChars = binaryFilterOn ? '01' : "@#S%?*+;:,. ";
+    });
+
+    blockFilterButton.addEventListener('click', function() {
+      blockFilterOn = !blockFilterOn;
+      binaryFilterOn = false;
+      asciiChars = blockFilterOn ? '█▓▒░' : "@#S%?*+;:,. ";
+    });
+
+    videoInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const video = document.createElement('video');
+        video.src = URL.createObjectURL(file);
+        video.play();
+        video.muted = true;
+        video.loop = true;
+
+        video.addEventListener('play', function() {
+          videoCanvas.width = video.videoWidth;
+          videoCanvas.height = video.videoHeight;
+          renderFrame(video);
+        });
+      }
+    });
+
+    document.addEventListener('mousemove', function(event) {
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let mouseX = event.clientX / width;
+      let mouseY = event.clientY / height;
+      let newSize = 10 + (mouseX + mouseY) * 20;
+      asciiArtDiv.style.fontSize = `${newSize}px`; 
+    });
+
+    document.addEventListener('click', function(event) {
+      const rect = asciiArtDiv.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      asciiArtDiv.classList.add('explode');
+      setTimeout(() => asciiArtDiv.classList.remove('explode'), 500);
+    });
+
+    function renderFrame(video) {
+      if (!video.paused && !video.ended) {
+        ctx.drawImage(video, 0, 0, videoCanvas.width / pixelDensity, videoCanvas.height / pixelDensity);
+        const imageData = ctx.getImageData(0, 0, videoCanvas.width / pixelDensity, videoCanvas.height / pixelDensity);
+        const asciiFrame = convertToASCII(imageData);
+        asciiArtDiv.innerHTML = asciiFrame;
+        setTimeout(() => renderFrame(video), 1000 / fps);
+      }
+    }
+
+    function convertToASCII(imageData) {
+      let asciiStr = '';
+      for (let y = 0; y < imageData.height; y++) {
+        for (let x = 0; x < imageData.width; x++) {
+          const index = (y * imageData.width + x) * 4;
+          const brightness = (imageData.data[index] + imageData.data[index + 1] + imageData.data[index + 2]) / 3;
+          const charIndex = Math.floor((brightness / 255) * (asciiChars.length - 1));
+          asciiStr += asciiChars[charIndex];
+        }
+        asciiStr += '\n';
+      }
+      return asciiStr;
+    }
+
+    saveAsciiArtButton.addEventListener('click', function() {
+      const asciiText = asciiArtDiv.innerText;
+      const blob = new Blob([asciiText], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'ascii-art.txt';
+      link.click();
+    });
+
+  </script>
+
+</body>
+</html>
